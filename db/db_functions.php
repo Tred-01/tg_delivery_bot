@@ -295,7 +295,7 @@ function db_getAssignedOrdersByWorker($workerId) {
     $db = db();
 
     $stmt = $db->prepare("
-        SELECT o.id, o.status, o.price, o.created_at, p.name AS product_name
+        SELECT o.id, o.status, o.price, o.created_at, p.name
         FROM orders o
         JOIN products p ON p.id = o.product_id
         WHERE o.assigned_worker_id = ?
@@ -303,12 +303,57 @@ function db_getAssignedOrdersByWorker($workerId) {
     ");
     $stmt->bind_param("i", $workerId);
     $stmt->execute();
-    $res = $stmt->get_result();
+
+    $stmt->bind_result($id, $status, $price, $createdAt, $productName);
 
     $orders = [];
-    while ($row = $res->fetch_assoc()) {
-        $orders[] = $row;
+    while ($stmt->fetch()) {
+        $orders[] = [
+            'id' => $id,
+            'status' => $status,
+            'price' => $price,
+            'created_at' => $createdAt,
+            'product_name' => $productName
+        ];
     }
 
+    $stmt->close();
     return $orders;
 }
+
+function db_completeOrder($orderId, $workerId) {
+    $db = db();
+
+    // Спочатку отримуємо buyer_id для логу
+    $stmt = $db->prepare("SELECT buyer_id FROM orders WHERE id = ?");
+    $stmt->bind_param("i", $orderId);
+    $stmt->execute();
+    $stmt->bind_result($buyerId);
+    if (!$stmt->fetch()) {
+        $stmt->close();
+        return false; // замовлення не знайдено
+    }
+    $stmt->close();
+
+    // Оновлюємо статус в orders
+    $stmt = $db->prepare("
+        UPDATE orders
+        SET status = 'completed'
+        WHERE id = ? AND assigned_worker_id = ?
+    ");
+    $stmt->bind_param("ii", $orderId, $workerId);
+    $stmt->execute();
+    $stmt->close();
+
+    // Записуємо в order_logs
+    $stmt = $db->prepare("
+        INSERT INTO order_logs (order_id, worker_id, buyer_id, status, created_at)
+        VALUES (?, ?, ?, 'completed', NOW())
+    ");
+    $stmt->bind_param("iii", $orderId, $workerId, $buyerId);
+    $stmt->execute();
+    $stmt->close();
+
+    return true;
+}
+

@@ -135,3 +135,11 @@ function sendUserOrders($chatId, $userId, $messageId = null) {
     }
 }
 
+function workerAssignedOrderKeyboard($orderId) {
+    return [
+        'inline_keyboard' => [
+            [['text' => '✅ Виконано', 'callback_data' => 'complete_'.$orderId]],
+            [['text' => '⬅️ Назад', 'callback_data' => 'worker_menu']]
+        ]
+    ];
+}

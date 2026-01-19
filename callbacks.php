@@ -145,21 +145,40 @@ function handleCallback(array $cb) {
                 );
             } else {
                 // формуємо текст для замовлень
-                $text = "🛠 <b>Замовлення в роботі</b>\n\n";
                 foreach ($orders as $o) {
-                    $text .= "🆔 #{$o['id']} | {$o['status']} | {$o['price']}$ | {$o['created_at']}\n";
-                }
+                    $text = "🆔 #{$o['id']} | Статус: {$o['status']} | {$o['price']}$ | {$o['created_at']}\n";
 
-                // Відправляємо як редагування з кнопкою "Назад"
-                editMessage($chatId, $messageId,
-                    $text,
-                    [
+                    // Клавіатура з кнопкою "Виконано" + "Назад"
+                    $keyboard = [
                         'inline_keyboard' => [
+                            [
+                                ['text' => '✅ Виконано', 'callback_data' => 'complete_'.$o['id']]
+                            ],
                             [
                                 ['text' => '🔙 Назад', 'callback_data' => 'menu_main']
                             ]
                         ]
-                    ]
+                    ];
+
+                    // Надсилаємо/редагуємо повідомлення для кожного замовлення
+                    editMessage($chatId, $messageId, $text, $keyboard);
+                }
+            }
+            break;
+
+            case str_starts_with($data, 'complete_'):
+            $orderId = (int) str_replace('complete_', '', $data);
+
+            $success = db_completeOrder($orderId, $user['id']); // функція з db_functions.php
+            if ($success) {
+                editMessage($chatId, $messageId,
+                    "✅ Замовлення #$orderId позначено як виконане",
+                    mainMenuKeyboard($user)
+                );
+            } else {
+                editMessage($chatId, $messageId,
+                    "❌ Не вдалося оновити замовлення",
+                    mainMenuKeyboard($user)
                 );
             }
             break;
