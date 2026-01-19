@@ -269,3 +269,24 @@ function db_payAndCreateOrder($buyerId, $productId, $regionId, $price) {
         return false;
     }
 }
+
+/* =========================
+   ORDERS - нові замовлення для робітників
+========================= */
+function db_getNewOrders() {
+    $db = db();
+
+    $res = $db->query("
+        SELECT o.id, o.status, o.price, o.created_at, p.name AS product_name
+        FROM orders o
+        JOIN products p ON p.id = o.product_id
+        WHERE o.status = 'searching_worker'
+        ORDER BY o.id ASC
+    ");
+
+    $rows = [];
+    while ($r = $res->fetch_assoc()) {
+        $rows[] = $r;
+    }
+    return $rows;
+}
