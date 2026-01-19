@@ -49,7 +49,6 @@ function handleCallback(array $cb) {
         case str_starts_with($data, 'region_'):
             $regionId = (int)str_replace('region_', '', $data);
             $items = db_getItems();
-
             editMessage($chatId, $messageId,
                 "📦 <b>Оберіть товар</b>",
                 itemsKeyboard($items, $regionId)
@@ -72,7 +71,28 @@ function handleCallback(array $cb) {
                 }
             }
 
-            db_createOrder($user['id'], $itemId, $regionId);
+            // Списання балансу та створення замовлення
+            $orderId = db_payAndCreateOrder($user['id'], $itemId, $regionId, $price);
+
+            if (!$orderId) {
+                // недостатньо коштів
+                sendMessage($chatId,
+                    "❌ Недостатньо коштів на балансі. Будь ласка, поповніть баланс.",
+                    topupKeyboard()
+                );
+                break;
+            }
+
+            // Надсилаємо push-повідомлення всім робітникам про новий ордер
+            $workers = db_getUsersByRole('worker');
+            foreach ($workers as $w) {
+                sendMessage($w['telegram_id'],
+                    "📢 <b>Нове замовлення!</b>\n"
+                    ."🛒 Товар: {$i['name']}\n"
+                    ."💰 Ціна: {$price}$\n"
+                    ."⏳ Статус: searching_worker"
+                );
+            }
 
             editMessage($chatId, $messageId,
                 "⏳ <b>Замовлення створено</b>\n\nОчікує прийняття робітником.\nСтатус дивіться в «Мої замовлення»",
@@ -80,10 +100,8 @@ function handleCallback(array $cb) {
             );
             break;
 
-
         /* ========= MY ORDERS ========= */
         case $data === 'my_orders':
-            // Використовуємо функцію sendUserOrders, щоб відправити текст із замовленнями
             sendUserOrders($chatId, $user['id'], $messageId);
             break;
 
@@ -99,17 +117,16 @@ function handleCallback(array $cb) {
             break;
 
         case $data === 'free_orders':
-            $orders = db_getFreeOrders();
+            $orders = db_getNewOrders(); // змінив на нові замовлення
 
             editMessage($chatId, $messageId,
-                "📋 <b>Вільні замовлення</b>",
+                "📋 <b>Нові замовлення</b>",
                 ordersKeyboard($orders, 'accept')
             );
             break;
 
         case str_starts_with($data, 'accept_'):
             $orderId = (int)str_replace('accept_', '', $data);
-
             db_acceptOrder($orderId, $user['id']);
 
             editMessage($chatId, $messageId,

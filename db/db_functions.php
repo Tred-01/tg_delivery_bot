@@ -222,3 +222,50 @@ function db_setWorkerStatus($userId, $status) {
     $stmt->bind_param("si", $status, $userId);
     $stmt->execute();
 }
+
+
+function db_payAndCreateOrder($buyerId, $productId, $regionId, $price) {
+    $db = db();
+
+    // Отримуємо баланс користувача
+    $stmt = $db->prepare("SELECT balance FROM users WHERE id = ?");
+    $stmt->bind_param("i", $buyerId);
+    $stmt->execute();
+    $stmt->bind_result($balance);
+    $stmt->fetch();
+    $stmt->close();
+
+    if ($balance < $price) {
+        return false; // недостатньо коштів
+    }
+
+    // Починаємо транзакцію
+    $db->begin_transaction();
+
+    try {
+        // Знімаємо баланс
+        $stmt = $db->prepare("UPDATE users SET balance = balance - ? WHERE id = ?");
+        $stmt->bind_param("di", $price, $buyerId);
+        $stmt->execute();
+        $stmt->close();
+
+        // Створюємо замовлення зі статусом 'searching_worker'
+        $stmt = $db->prepare("
+            INSERT INTO orders (buyer_id, product_id, region_id, price, status, created_at)
+            VALUES (?, ?, ?, ?, 'searching_worker', NOW())
+        ");
+        $stmt->bind_param("iiid", $buyerId, $productId, $regionId, $price);
+        $stmt->execute();
+
+        $orderId = $stmt->insert_id;
+        $stmt->close();
+
+        $db->commit();
+
+        return $orderId;
+
+    } catch (Exception $e) {
+        $db->rollback();
+        return false;
+    }
+}
