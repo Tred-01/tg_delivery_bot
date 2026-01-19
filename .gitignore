@@ -1,0 +1,6 @@
+.env
+token.php
+logs/
+vendor/
+node_modules/
+*.log
