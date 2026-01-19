@@ -134,5 +134,35 @@ function handleCallback(array $cb) {
                 mainMenuKeyboard($user)
             );
             break;
+
+        case $data === 'my_assigned_orders':
+            $orders = db_getAssignedOrdersByWorker($user['id']);
+
+            if (empty($orders)) {
+                editMessage($chatId, $messageId,
+                    "📭 У вас немає замовлень в роботі",
+                    mainMenuKeyboard($user)
+                );
+            } else {
+                // формуємо текст для замовлень
+                $text = "🛠 <b>Замовлення в роботі</b>\n\n";
+                foreach ($orders as $o) {
+                    $text .= "🆔 #{$o['id']} | {$o['status']} | {$o['price']}$ | {$o['created_at']}\n";
+                }
+
+                // Відправляємо як редагування з кнопкою "Назад"
+                editMessage($chatId, $messageId,
+                    $text,
+                    [
+                        'inline_keyboard' => [
+                            [
+                                ['text' => '🔙 Назад', 'callback_data' => 'menu_main']
+                            ]
+                        ]
+                    ]
+                );
+            }
+            break;
+
     }
 }

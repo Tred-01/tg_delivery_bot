@@ -200,8 +200,8 @@ function db_acceptOrder($orderId, $workerId) {
 
     $stmt = $db->prepare("
         UPDATE orders
-        SET status = 'accepted', worker_id = ?
-        WHERE id = ? AND status = 'pending'
+        SET status = 'assigned', assigned_worker_id = ?
+        WHERE id = ? AND status = 'searching_worker'
     ");
     $stmt->bind_param("ii", $workerId, $orderId);
     $stmt->execute();
@@ -281,7 +281,7 @@ function db_getNewOrders() {
         FROM orders o
         JOIN products p ON p.id = o.product_id
         WHERE o.status = 'searching_worker'
-        ORDER BY o.id ASC
+        ORDER BY o.created_at ASC
     ");
 
     $rows = [];
@@ -289,4 +289,26 @@ function db_getNewOrders() {
         $rows[] = $r;
     }
     return $rows;
+}
+
+function db_getAssignedOrdersByWorker($workerId) {
+    $db = db();
+
+    $stmt = $db->prepare("
+        SELECT o.id, o.status, o.price, o.created_at, p.name AS product_name
+        FROM orders o
+        JOIN products p ON p.id = o.product_id
+        WHERE o.assigned_worker_id = ?
+        ORDER BY o.created_at DESC
+    ");
+    $stmt->bind_param("i", $workerId);
+    $stmt->execute();
+    $res = $stmt->get_result();
+
+    $orders = [];
+    while ($row = $res->fetch_assoc()) {
+        $orders[] = $row;
+    }
+
+    return $orders;
 }

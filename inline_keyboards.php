@@ -27,6 +27,9 @@ function mainMenuKeyboard($user) {
         $buttons[] = [
             ['text' => '📋 Вільні замовлення', 'callback_data' => 'free_orders']
         ];
+        $buttons[] = [
+            ['text' => '🛠 Замовлення в роботі', 'callback_data' => 'my_assigned_orders']
+        ];
     }
 
     return ['inline_keyboard' => $buttons];
