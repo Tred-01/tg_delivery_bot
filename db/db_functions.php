@@ -321,6 +321,38 @@ function db_getAssignedOrdersByWorker($workerId) {
     return $orders;
 }
 
+/* =========================
+   USERS BY ROLE
+========================= */
+function db_getUsersByRole($role) {
+    $db = db();
+
+    $stmt = $db->prepare("
+        SELECT id, telegram_id, balance, role, worker_status
+        FROM users
+        WHERE role = ?
+        ORDER BY id ASC
+    ");
+    $stmt->bind_param("s", $role);
+    $stmt->execute();
+    $stmt->bind_result($id, $telegramId, $balance, $roleDb, $workerStatus);
+
+    $users = [];
+    while ($stmt->fetch()) {
+        $users[] = [
+            'id' => $id,
+            'telegram_id' => $telegramId,
+            'balance' => $balance,
+            'role' => $roleDb,
+            'worker_status' => $workerStatus
+        ];
+    }
+
+    $stmt->close();
+    return $users;
+}
+
+
 function db_completeOrder($orderId, $workerId) {
     $db = db();
 
